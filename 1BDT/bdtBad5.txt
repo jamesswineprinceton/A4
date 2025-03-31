@@ -1,0 +1,742 @@
+1       /*--------------------------------------------------------------------*/
+2       /* bdt.c (5th bad version)                                            */
+3       /* Author: Christopher Moretti                                        */
+4       /*--------------------------------------------------------------------*/
+5
+6       #include <stddef.h>
+7       #include <assert.h>
+8       #include <string.h>
+9       #include <stdio.h>
+10      #include <stdlib.h>
+(gdb) list
+11
+12      #include "dynarray.h"
+13      #include "path.h"
+14      #include "bdt.h"
+15
+16
+17      /* A node in a BDT */
+18      struct node {
+19         /* the object corresponding to the node's absolute path */
+20         Path_T oPPath;
+(gdb) list
+21         /* this node's parent */
+22         struct node *psParent;
+23         /* this node's children */
+24         struct node *psChild1, *psChild2;
+25      };
+26
+27      /*
+28        A Directory Tree is a representation of a hierarchy of directories,
+29        represented as an AO with 3 state variables:
+30      */
+(gdb) list
+31
+32      /* 1. a flag for being in an initialized state (TRUE) or not (FALSE) */
+33      static boolean bIsInitialized;
+34      /* 2. a pointer to the root node in the hierarchy */
+35      static struct node *psRoot;
+36      /* 3. a counter of the number of nodes in the hierarchy */
+37      static size_t ulCount;
+38
+39      /*
+40        Links new child psChild from psParent. If psParent already has
+(gdb) list
+41        two children, returns CONFLICTING_PATH, otherwise returns SUCCESS.
+42      */
+43      static int BDT_addChild(struct node *psParent, struct node *psChild) {
+44         assert(psParent != NULL);
+45         assert(psChild != NULL);
+46
+47         if(!psParent->psChild1)
+48            psParent->psChild1 = psChild;
+49         else if(!psParent->psChild2)
+50            psParent->psChild2 = psChild;
+(gdb) list
+51         else
+52            return CONFLICTING_PATH;
+53
+54         return SUCCESS;
+55      }
+56
+57      /*
+58        Compares the string representation of psfirst with a string
+59        pcSecond representing a node's path.
+60        Returns <0, 0, or >0 if psFirst is "less than", "equal to", or
+(gdb) list
+61        "greater than" pcSecond, respectively.
+62      */
+63      static int BDT_compareNodeToString(const struct node *psFirst,
+64                                       const char *pcSecond) {
+65         assert(psFirst != NULL);
+66         assert(pcSecond != NULL);
+67
+68         return Path_compareString(psFirst->oPPath, pcSecond);
+69      }
+70
+(gdb) list
+71      /* Returns the number of children that psParent has. */
+72      static size_t BDT_getNumChildren(struct node *psParent) {
+73         assert(psParent != NULL);
+74
+75         return (size_t) (2 - (!psParent->psChild1 + !psParent->psChild2));
+76      }
+77
+78      /*
+79        Returns TRUE if psParent has a child with path oPPath. Returns
+80        FALSE if it does not.
+(gdb) list
+81
+82        If psParent has such a child, stores in *pulChildID the child's
+83        identifier (as used in BDT_getChild). If psParent does not have
+84        such a child, stores in *pulChildID the identifier that such a
+85        child _would_ have if inserted.
+86      */
+87      static boolean BDT_hasChild(struct node *psParent, Path_T oPPath,
+88                               size_t *pulChildID) {
+89         assert(psParent != NULL);
+90         assert(oPPath != NULL);
+(gdb) list
+91         assert(pulChildID != NULL);
+92
+93         if(!psParent->psChild1) {
+94            *pulChildID = 0;
+95            return FALSE;
+96         }
+97         else if(!BDT_compareNodeToString(psParent->psChild1,
+98                                     Path_getPathname(oPPath))) {
+99            *pulChildID = 0;
+100           return TRUE;
+(gdb) list
+101        }
+102        else if(!psParent->psChild2) {
+103           *pulChildID = 1;
+104           return FALSE;
+105        }
+106        else if(!BDT_compareNodeToString(psParent->psChild2,
+107                                    Path_getPathname(oPPath))) {
+108           *pulChildID = 1;
+109           return TRUE;
+110        }
+(gdb) list
+111        else {
+112           *pulChildID = 2;
+113           return FALSE;
+114        }
+115     }
+116
+117
+118     /*
+119       Creates a new node with path oPPath and parent psParent.  Returns an
+120       int SUCCESS status and sets *ppsResult to be the new node if
+(gdb) list
+121       successful. Otherwise, sets *ppsResult to NULL and returns status:
+122       * MEMORY_ERROR if memory could not be allocated to complete request
+123       * CONFLICTING_PATH if psParent's path is not an ancestor of oPPath
+124                          or if psParent already has two children
+125       * NO_SUCH_PATH if oPPath is of depth 0
+126                      or psParent's path is not oPPath's direct parent
+127                      or psParent is NULL but oPPath is not of depth 1
+128       * ALREADY_IN_TREE if psParent already has a child with this path
+129     */
+130     static int BDT_newNode(Path_T oPPath, struct node *psParent, struct node **ppsResult) {
+(gdb) list
+131        struct node *psNew;
+132        Path_T oPParentPath = NULL;
+133        Path_T oPNewPath = NULL;
+134        size_t ulParentDepth;
+135        size_t ulIndex;
+136        int iStatus;
+137
+138        assert(oPPath != NULL);
+139        assert(ppsResult != NULL);
+140        /* psParent may be NULL -- when the new node is the root */
+(gdb) list
+141
+142        /* allocate space for a new node */
+143        psNew = malloc(sizeof(struct node));
+144        if(psNew == NULL) {
+145           *ppsResult = NULL;
+146           return MEMORY_ERROR;
+147        }
+148
+149        /* set the new node's path */
+150        iStatus = Path_dup(oPPath, &oPNewPath);
+(gdb) list
+151        if(iStatus != SUCCESS) {
+152           free(psNew);
+153           *ppsResult = NULL;
+154           return iStatus;
+155        }
+156        psNew->oPPath = oPNewPath;
+157
+158        /* validate and set the new node's parent */
+159        if(psParent != NULL) {
+160           size_t ulSharedDepth;
+(gdb) list
+161
+162           oPParentPath = psParent->oPPath;
+163           ulParentDepth = Path_getDepth(oPParentPath);
+164           ulSharedDepth = Path_getSharedPrefixDepth(psNew->oPPath,
+165                                                     oPParentPath);
+166           /* parent must be an ancestor of child */
+167           if(ulSharedDepth < ulParentDepth) {
+168              Path_free(psNew->oPPath);
+169              free(psNew);
+170              *ppsResult = NULL;
+(gdb) list
+171              return CONFLICTING_PATH;
+172           }
+173
+174           /* parent must be exactly one level up from child */
+175           if(Path_getDepth(psNew->oPPath) != ulParentDepth + 1) {
+176              Path_free(psNew->oPPath);
+177              free(psNew);
+178              *ppsResult = NULL;
+179              return NO_SUCH_PATH;
+180           }
+(gdb) list
+181
+182           /* parent must not already have child with this path */
+183           if(BDT_hasChild(psParent, oPPath, &ulIndex)) {
+184              Path_free(psNew->oPPath);
+185              free(psNew);
+186              *ppsResult = NULL;
+187              return ALREADY_IN_TREE;
+188           }
+189
+190           /* parent must not already have two children */
+(gdb) list
+191           if(BDT_getNumChildren(psParent) == 2) {
+192              Path_free(psNew->oPPath);
+193              free(psNew);
+194              *ppsResult = NULL;
+195              return CONFLICTING_PATH;
+196           }
+197        }
+198        else {
+199           /* new node must be root */
+200           /* can only create one "level" at a time */
+(gdb) list
+201           if(Path_getDepth(psNew->oPPath) != 1) {
+202              Path_free(psNew->oPPath);
+203              free(psNew);
+204              *ppsResult = NULL;
+205              return NO_SUCH_PATH;
+206           }
+207        }
+208        psNew->psParent = psParent;
+209
+210        /* set the new node's children */
+(gdb) list
+211        psNew->psChild1 = NULL;
+212        psNew->psChild2 = NULL;
+213
+214        /* Link into parent's child link */
+215        if(psParent != NULL) {
+216           iStatus = BDT_addChild(psParent, psNew);
+217           if(iStatus != SUCCESS) {
+218              Path_free(psNew->oPPath);
+219              free(psNew);
+220              *ppsResult = NULL;
+(gdb) list
+221              return iStatus;
+222           }
+223        }
+224
+225        *ppsResult = psNew;
+226        return SUCCESS;
+227     }
+228
+229     /*
+230       Destroys and frees all memory allocated for the subtree rooted at
+(gdb) list
+231       psNode, i.e., deletes this node and all its descendents. Returns the
+232       number of nodes deleted.
+233     */
+234     static size_t BDT_freeSubtree(struct node *psNode) {
+235        size_t ulCount = 0;
+236
+237        assert(psNode != NULL);
+238
+239        /* remove from parent's list */
+240        if(psNode->psParent != NULL) {
+(gdb) list
+241           if(psNode->psParent->psChild1 == psNode) {
+242              psNode->psParent->psChild1 = psNode->psParent->psChild2;
+243              psNode->psParent->psChild2 = NULL;
+244           }
+245           else if(psNode->psParent->psChild2 == psNode) {
+246              psNode->psParent->psChild2 = NULL;
+247           }
+248           else {
+249              assert(FALSE);
+250           }
+(gdb) list
+251        }
+252
+253        /* recursively remove children */
+254        if(psNode->psChild2)
+255           ulCount += BDT_freeSubtree(psNode->psChild2);
+256        if(psNode->psChild1)
+257           ulCount += BDT_freeSubtree(psNode->psChild1);
+258
+259        /* remove path */
+260        Path_free(psNode->oPPath);
+(gdb) list
+261
+262        /* finally, free the struct node */
+263        free(psNode);
+264        ulCount++;
+265        return ulCount;
+266     }
+267
+268     /* Returns the path object representing psNode's absolute path. */
+269     static Path_T BDT_getPath(struct node *psNode) {
+270        assert(psNode != NULL);
+(gdb) list
+271
+272        return psNode->oPPath;
+273     }
+274
+275
+276     /*
+277       Returns an int SUCCESS status and sets *ppsResult to be the child
+278       node of psParent with identifier ulChildID, if one exists.
+279       Otherwise, sets *ppsResult to NULL and returns status:
+280       * NO_SUCH_PATH if ulChildID is not a valid child for psParent
+(gdb) list
+281     */
+282     static int  BDT_getChild(struct node *psParent, size_t ulChildID,
+283                        struct node **ppsResult) {
+284
+285        assert(psParent != NULL);
+286        assert(ppsResult != NULL);
+287
+288        if(ulChildID == 0) {
+289           *ppsResult = psParent->psChild1;
+290           if(*ppsResult) return SUCCESS;
+(gdb) list
+291           else return NO_SUCH_PATH;
+292        }
+293        else if(ulChildID == 1) {
+294           *ppsResult = psParent->psChild2;
+295           if(*ppsResult) return SUCCESS;
+296           else return NO_SUCH_PATH;
+297        }
+298        else {
+299           *ppsResult = NULL;
+300           return NO_SUCH_PATH;
+(gdb) list
+301        }
+302     }
+303
+304     /* --------------------------------------------------------------------
+305
+306       The BDT_traversePath and BDT_findNode functions modularize the common
+307       functionality of going as far as possible down an BDT towards a path
+308       and returning either the node of however far was reached or the
+309       node if the full path was reached, respectively.
+310     */
+(gdb) list
+311
+312     /*
+313       Traverses the BDT starting at the root as far as possible towards
+314       absolute path oPPath. If able to traverse, returns an int SUCCESS
+315       status and sets *ppsFurthest to the furthest node reached (which may
+316       be only a prefix of oPPath, or even NULL if the root is NULL).
+317       Otherwise, sets *ppsFurthest to NULL and returns with status:
+318       * CONFLICTING_PATH if the root's path is not a prefix of oPPath
+319       * MEMORY_ERROR if memory could not be allocated to complete request
+320     */
+(gdb) list
+321     static int BDT_traversePath(Path_T oPPath, struct node **ppsFurthest) {
+322        int iStatus;
+323        Path_T oPPrefix = NULL;
+324        struct node *psCurr;
+325        struct node *psChild = NULL;
+326        size_t ulDepth;
+327        size_t i;
+328        size_t ulChildID;
+329
+330        assert(oPPath != NULL);
+(gdb) list
+331        assert(ppsFurthest != NULL);
+332
+333        /* root is NULL -> won't find anything */
+334        if(psRoot == NULL) {
+335           *ppsFurthest = NULL;
+336           return SUCCESS;
+337        }
+338
+339        iStatus = Path_prefix(oPPath, 1, &oPPrefix);
+340        if(iStatus != SUCCESS) {
+(gdb) list
+341           *ppsFurthest = NULL;
+342           return iStatus;
+343        }
+344
+345        if(Path_comparePath(BDT_getPath(psRoot), oPPrefix)) {
+346           Path_free(oPPrefix);
+347           *ppsFurthest = NULL;
+348           return CONFLICTING_PATH;
+349        }
+350        Path_free(oPPrefix);
+(gdb) list
+351        oPPrefix = NULL;
+352
+353        psCurr = psRoot;
+354        ulDepth = Path_getDepth(oPPath);
+355        for(i = 2; i <= ulDepth; i++) {
+356           iStatus = Path_prefix(oPPath, i, &oPPrefix);
+357           if(iStatus != SUCCESS) {
+358              *ppsFurthest = NULL;
+359              return iStatus;
+360           }
+(gdb) list
+361           if(BDT_hasChild(psCurr, oPPrefix, &ulChildID)) {
+362              /* go to that child and continue with next prefix */
+363              Path_free(oPPrefix);
+364              oPPrefix = NULL;
+365              iStatus = BDT_getChild(psCurr, ulChildID, &psChild);
+366              if(iStatus != SUCCESS) {
+367                 *ppsFurthest = NULL;
+368                 return iStatus;
+369              }
+370              psCurr = psChild;
+(gdb) list
+371           }
+372           else {
+373              /* psCurr doesn't have child with path oPPrefix:
+374                 this is as far as we can go */
+375              break;
+376           }
+377        }
+378
+379        Path_free(oPPrefix);
+380        *ppsFurthest = psCurr;
+(gdb) list
+381        return SUCCESS;
+382     }
+383
+384     /*
+385       Traverses the BDT to find a node with absolute path pcPath. Returns a
+386       int SUCCESS status and sets *ppsResult to be the node, if found.
+387       Otherwise, sets *ppsResult to NULL and returns with status:
+388       * INITIALIZATION_ERROR if the BDT is not in an initialized state
+389       * BAD_PATH if pcPath does not represent a well-formatted path
+390       * CONFLICTING_PATH if the root's path is not a prefix of pcPath
+(gdb) list
+391       * NO_SUCH_PATH if no node with pcPath exists in the hierarchy
+392       * MEMORY_ERROR if memory could not be allocated to complete request
+393      */
+394     static int BDT_findNode(const char *pcPath, struct node **ppsResult) {
+395        Path_T oPPath = NULL;
+396        struct node *psFound = NULL;
+397        int iStatus;
+398
+399        assert(pcPath != NULL);
+400        assert(ppsResult != NULL);
+(gdb) list
+401
+402        if(!bIsInitialized) {
+403           *ppsResult = NULL;
+404           return INITIALIZATION_ERROR;
+405        }
+406
+407        iStatus = Path_new(pcPath, &oPPath);
+408        if(iStatus != SUCCESS) {
+409           *ppsResult = NULL;
+410           return iStatus;
+(gdb) list
+411        }
+412
+413        iStatus = BDT_traversePath(oPPath, &psFound);
+414        if(iStatus != SUCCESS)
+415        {
+416           Path_free(oPPath);
+417           *ppsResult = NULL;
+418           return iStatus;
+419        }
+420
+(gdb) list
+421        if(psFound == NULL) {
+422           Path_free(oPPath);
+423           *ppsResult = NULL;
+424           return NO_SUCH_PATH;
+425        }
+426
+427        if(Path_comparePath(BDT_getPath(psFound), oPPath) != 0) {
+428           *ppsResult = NULL;
+429           return NO_SUCH_PATH;
+430        }
+(gdb) list
+431
+432        Path_free(oPPath);
+433        *ppsResult = psFound;
+434        return SUCCESS;
+435     }
+436     /*--------------------------------------------------------------------*/
+437
+438
+439     int BDT_insert(const char *pcPath) {
+440        int iStatus;
+(gdb) list
+441        Path_T oPPath = NULL;
+442        struct node *psFirstNew = NULL;
+443        struct node *psCurr = NULL;
+444        size_t ulDepth, ulIndex;
+445        size_t ulNewNodes = 0;
+446
+447        assert(pcPath != NULL);
+448
+449        /* validate pcPath and generate a Path_T for it */
+450        if(!bIsInitialized)
+(gdb) list
+451           return INITIALIZATION_ERROR;
+452
+453        iStatus = Path_new(pcPath, &oPPath);
+454        if(iStatus != SUCCESS)
+455           return iStatus;
+456
+457        /* find the closest ancestor of oPPath already in the tree */
+458        iStatus= BDT_traversePath(oPPath, &psCurr);
+459        if(iStatus != SUCCESS)
+460        {
+(gdb) list
+461           Path_free(oPPath);
+462           return iStatus;
+463        }
+464
+465        /* no ancestor node found, so if root is not NULL,
+466           pcPath isn't underneath root. */
+467        if(psCurr == NULL && psRoot != NULL) {
+468           Path_free(oPPath);
+469           return CONFLICTING_PATH;
+470        }
+(gdb) list
+471
+472        ulDepth = Path_getDepth(oPPath);
+473        if(psCurr == NULL) /* new root! */
+474           ulIndex = 1;
+475        else {
+476           ulIndex = Path_getDepth(BDT_getPath(psCurr))+1;
+477
+478           /* psCurr is the node we're trying to insert */
+479           if(ulIndex == ulDepth+1 && !Path_comparePath(oPPath,
+480                                            BDT_getPath(psCurr))) {
+(gdb) list
+481              Path_free(oPPath);
+482              return ALREADY_IN_TREE;
+483           }
+484        }
+485
+486        /* starting at psCurr, build rest of the path one level at a time */
+487        while(ulIndex <= ulDepth) {
+488           Path_T oPPrefix = NULL;
+489           struct node *psNewNode = NULL;
+490
+(gdb) list
+491           /* generate a Path_T for this level */
+492           iStatus = Path_prefix(oPPath, ulIndex, &oPPrefix);
+493           if(iStatus != SUCCESS) {
+494              Path_free(oPPath);
+495              if(psFirstNew != NULL)
+496                 (void) BDT_freeSubtree(psFirstNew);
+497              return iStatus;
+498           }
+499
+500           /* insert the new node for this level */
+(gdb) list
+501           iStatus = BDT_newNode(oPPrefix, psCurr, &psNewNode);
+502           if(iStatus != SUCCESS) {
+503              Path_free(oPPath);
+504              Path_free(oPPrefix);
+505              if(psFirstNew != NULL)
+506                 (void) BDT_freeSubtree(psFirstNew);
+507              return iStatus;
+508           }
+509
+510           /* set up for next level */
+(gdb) list
+511           Path_free(oPPrefix);
+512           psCurr = psNewNode;
+513           ulNewNodes++;
+514           if(psFirstNew == NULL)
+515              psFirstNew = psCurr;
+516           ulIndex++;
+517        }
+518
+519        Path_free(oPPath);
+520        /* update BDT state variables to reflect insertion */
+(gdb) list
+521        if(psRoot == NULL)
+522           psRoot = psFirstNew;
+523        ulCount += ulNewNodes;
+524
+525        return SUCCESS;
+526     }
+527
+528     boolean BDT_contains(const char *pcPath) {
+529        int iStatus;
+530        struct node *psFound = NULL;
+(gdb) list
+531
+532        assert(pcPath != NULL);
+533
+534        iStatus = BDT_findNode(pcPath, &psFound);
+535        return (boolean) (iStatus == SUCCESS);
+536     }
+537
+538
+539     int BDT_rm(const char *pcPath) {
+540        int iStatus;
+(gdb) list
+541        struct node *psFound = NULL;
+542
+543        assert(pcPath != NULL);
+544
+545        iStatus = BDT_findNode(pcPath, &psFound);
+546
+547        if(iStatus != SUCCESS)
+548            return iStatus;
+549
+550        ulCount -= BDT_freeSubtree(psFound);
+(gdb) list
+551        if(ulCount == 0)
+552           psRoot = NULL;
+553
+554        return SUCCESS;
+555     }
+556
+557     int BDT_init(void) {
+558
+559        if(bIsInitialized)
+560           return INITIALIZATION_ERROR;
+(gdb) list
+561
+562        bIsInitialized = TRUE;
+563        psRoot = NULL;
+564        ulCount = 0;
+565
+566        return SUCCESS;
+567     }
+568
+569     int BDT_destroy(void) {
+570
+(gdb) list
+571
+572        if(!bIsInitialized)
+573           return INITIALIZATION_ERROR;
+574
+575        if(psRoot) {
+576           ulCount -= BDT_freeSubtree(psRoot);
+577           psRoot = NULL;
+578        }
+579
+580        bIsInitialized = FALSE;
+(gdb) list
+581
+582        return SUCCESS;
+583     }
+584
+585
+586     /* --------------------------------------------------------------------
+587
+588       The following auxiliary functions are used for generating the
+589       string representation of the BDT.
+590     */
+(gdb) list
+591
+592     /*
+593       Performs a pre-order traversal of the tree rooted at psNode,
+594       inserting each payload into oDNodes beginning at index ulIndex.
+595       Returns the next unused index in d after the insertion(s).
+596     */
+597     static size_t BDT_preOrderTraversal(struct node *psNode,
+598                                         DynArray_T oDNodes,
+599                                         size_t ulIndex) {
+600        size_t c;;
+(gdb) list
+601
+602        assert(oDNodes != NULL);
+603        /* psNode may be NULL, e.g. recursive call from leaf, guard below */
+604
+605        if(psNode != NULL) {
+606           (void) DynArray_set(oDNodes, ulIndex, psNode);
+607           ulIndex++;
+608           for(c = 0; c < BDT_getNumChildren(psNode); c++) {
+609              int iStatus;
+610              struct node *psChild = NULL;
+(gdb) list
+611              iStatus = BDT_getChild(psNode, c, &psChild);
+612              assert(iStatus == SUCCESS);
+613              ulIndex = BDT_preOrderTraversal(psChild, oDNodes, ulIndex);
+614           }
+615        }
+616        return ulIndex;
+617     }
+618
+619     /*
+620       Alternate version of strlen that uses pulAcc as an in-out parameter
+(gdb) list
+621       to accumulate a string length, rather than returning the length of
+622       psNode's path, and also always adds one addition byte to the sum.
+623     */
+624     static void BDT_strlenAccumulate(struct node *psNode, size_t *pulAcc) {
+625        assert(pulAcc != NULL);
+626        /* psNode can be NULL -- guarded below */
+627
+628        if(psNode != NULL)
+629           *pulAcc += (Path_getStrLength(BDT_getPath(psNode)) + 1);
+630     }
+(gdb) list
+631
+632     /*
+633       Alternate version of strcat that inverts the typical argument
+634       order, appending psNode's path onto pcAcc, and also always adds one
+635       newline at the end of the concatenated string.
+636     */
+637     static void BDT_strcatAccumulate(struct node *psNode, char *pcAcc) {
+638        assert(pcAcc != NULL);
+639        /* psNode can be NULL -- guarded below */
+640
+(gdb) list
+641        if(psNode != NULL) {
+642           strcat(pcAcc, Path_getPathname(BDT_getPath(psNode)));
+643           strcat(pcAcc, "\n");
+644        }
+645     }
+646     /*--------------------------------------------------------------------*/
+647
+648     char *BDT_toString(void) {
+649        DynArray_T nodes;
+650        size_t totalStrlen = 1;
+(gdb) list
+651        char *result = NULL;
+652
+653        if(!bIsInitialized)
+654           return NULL;
+655
+656        nodes = DynArray_new(ulCount);
+657        (void) BDT_preOrderTraversal(psRoot, nodes, 0);
+658
+659        DynArray_map(nodes, (void (*)(void *, void*)) BDT_strlenAccumulate,
+660                     (void*) &totalStrlen);
+(gdb) list
+661
+662        result = malloc(totalStrlen);
+663        if(result == NULL) {
+664           DynArray_free(nodes);
+665           return NULL;
+666        }
+667        *result = '\0';
+668
+669        DynArray_map(nodes, (void (*)(void *, void*)) BDT_strcatAccumulate,
+670                     (void *) result);
+(gdb) list
+671
+672        DynArray_free(nodes);
+673
+674        return result;
+675     }
