@@ -10,8 +10,6 @@
 #include "dynarray.h"
 #include "path.h"
 
-
-
 /* see checkerDT.h for specification */
 boolean CheckerDT_Node_isValid(Node_T oNNode) {
    Node_T oNParent;
@@ -24,6 +22,10 @@ boolean CheckerDT_Node_isValid(Node_T oNNode) {
       return FALSE;
    }
 
+   if(Node_getPath(oNNode) == NULL) {
+      fprintf(stderr, "Node has no path\n");
+      return FALSE;
+   }
 
    /* Sample check: parent's path must be the longest possible
       proper prefix of the node's path */
@@ -52,16 +54,33 @@ boolean CheckerDT_Node_isValid(Node_T oNNode) {
    parameter list to facilitate constructing your checks.
    If you do, you should update this function comment.
 */
-static boolean CheckerDT_treeCheck(Node_T oNNode) {
+static boolean CheckerDT_treeCheck(Node_T oNNode, DynArray_T oDPathsSeen) {
    size_t ulIndex;
+   Path_T oPPath;
 
-   if(oNNode!= NULL) {
+   if(oNNode!= NULL && oDPathsSeen != NULL) {
 
       /* Sample check on each node: node must be valid */
       /* If not, pass that failure back up immediately */
       if(!CheckerDT_Node_isValid(oNNode))
          return FALSE;
 
+      oPPath = Node_getPath(oNNode);
+
+      for (ulIndex = 0; ulIndex < DynArray_getLength(oDPathsSeen) &&
+                        DynArray_get(oDPathsSeen, ulIndex) != NULL;
+                        ulIndex++) {
+
+         /* Sample check: no two nodes can have the same path */
+         if (Path_comparePath(oPPath,
+                             DynArray_get(oDPathsSeen, ulIndex)) == 0) {
+            fprintf(stderr, "Duplicate path found: %s\n",
+                    Path_getPathname(oPPath));
+            return FALSE;
+         }
+      }
+      DynArray_add(oDPathsSeen, oPPath);
+      
       /* Recur on every child of oNNode */
       for(ulIndex = 0; ulIndex < Node_getNumChildren(oNNode); ulIndex++)
       {
@@ -75,16 +94,19 @@ static boolean CheckerDT_treeCheck(Node_T oNNode) {
 
          /* if recurring down one subtree results in a failed check
             farther down, passes the failure back up immediately */
-         if(!CheckerDT_treeCheck(oNChild))
+         if(!CheckerDT_treeCheck(oNChild, oDPathsSeen))
             return FALSE;
       }
    }
-   return TRUE;
+
+      return TRUE;
 }
+
 
 /* see checkerDT.h for specification */
 boolean CheckerDT_isValid(boolean bIsInitialized, Node_T oNRoot,
                           size_t ulCount) {
+   DynArray_T oDPathsSeen;
 
    /* Sample check on a top-level data structure invariant:
       if the DT is not initialized, its count should be 0. */
@@ -116,6 +138,8 @@ boolean CheckerDT_isValid(boolean bIsInitialized, Node_T oNRoot,
       }
    }
 
+   oDPathsSeen = DynArray_new(ulCount);
+
    /* Now checks invariants recursively at each node from the root. */
-   return CheckerDT_treeCheck(oNRoot);
+   return CheckerDT_treeCheck(oNRoot, oDPathsSeen);
 }
