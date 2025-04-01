@@ -24,6 +24,7 @@ boolean CheckerDT_Node_isValid(Node_T oNNode) {
       return FALSE;
    }
 
+
    /* Sample check: parent's path must be the longest possible
       proper prefix of the node's path */
    oNParent = Node_getParent(oNNode);
@@ -87,11 +88,33 @@ boolean CheckerDT_isValid(boolean bIsInitialized, Node_T oNRoot,
 
    /* Sample check on a top-level data structure invariant:
       if the DT is not initialized, its count should be 0. */
-   if(!bIsInitialized)
+   if(!bIsInitialized) {
       if(ulCount != 0) {
          fprintf(stderr, "Not initialized, but count is not 0\n");
          return FALSE;
       }
+   }
+
+   if(!bIsInitialized) {
+      if(oNRoot != NULL) {
+         fprintf(stderr, "Not initialized, but root is not NULL\n");
+         return FALSE;
+      }
+   }
+
+   if(ulCount == 0) {
+      if(oNRoot != 0) {
+         fprintf(stderr, "Count is 0, but root is not NULL\n");
+         return FALSE;
+      }
+   }
+
+   if(oNRoot == NULL) {
+      if(ulCount != 0) {
+         fprintf(stderr, "Root is NULL, but count is not 0\n");
+         return FALSE;
+      }
+   }
 
    /* Now checks invariants recursively at each node from the root. */
    return CheckerDT_treeCheck(oNRoot);
