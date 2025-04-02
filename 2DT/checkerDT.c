@@ -23,7 +23,7 @@ boolean CheckerDT_Node_isValid(Node_T oNNode) {
    }
 
    if(Node_getPath(oNNode) == NULL) {
-      fprintf(stderr, "Node has no path\n");
+      fprintf(stderr, "Node's path is NULL\n");
       return FALSE;
    }
 
@@ -54,32 +54,17 @@ boolean CheckerDT_Node_isValid(Node_T oNNode) {
    parameter list to facilitate constructing your checks.
    If you do, you should update this function comment.
 */
-static boolean CheckerDT_treeCheck(Node_T oNNode, DynArray_T oDPathsSeen) {
+static boolean CheckerDT_treeCheck(Node_T oNNode, size_t *ulRealCount) {
    size_t ulIndex;
-   Path_T oPPath;
 
-   if(oNNode!= NULL && oDPathsSeen != NULL) {
-
+   if(oNNode!= NULL) {
+      
       /* Sample check on each node: node must be valid */
       /* If not, pass that failure back up immediately */
       if(!CheckerDT_Node_isValid(oNNode))
          return FALSE;
 
-      oPPath = Node_getPath(oNNode);
-
-      for (ulIndex = 0; ulIndex < DynArray_getLength(oDPathsSeen) &&
-                        DynArray_get(oDPathsSeen, ulIndex) != NULL;
-                        ulIndex++) {
-
-         /* Sample check: no two nodes can have the same path */
-         if (Path_comparePath(oPPath,
-                             DynArray_get(oDPathsSeen, ulIndex)) == 0) {
-            fprintf(stderr, "Duplicate path found: %s\n",
-                    Path_getPathname(oPPath));
-            return FALSE;
-         }
-      }
-      DynArray_add(oDPathsSeen, oPPath);
+         (*ulRealCount)++;
       
       /* Recur on every child of oNNode */
       for(ulIndex = 0; ulIndex < Node_getNumChildren(oNNode); ulIndex++)
@@ -88,25 +73,48 @@ static boolean CheckerDT_treeCheck(Node_T oNNode, DynArray_T oDPathsSeen) {
          int iStatus = Node_getChild(oNNode, ulIndex, &oNChild);
 
          if(iStatus != SUCCESS) {
-            fprintf(stderr, "getNumChildren claims more children than getChild returns\n");
+            fprintf(stderr, 
+         "getNumChildren claims more children than getChild returns\n");
             return FALSE;
          }
 
+         /* Check: Children must be in lexographic path name order. 
+            Paths can not have duplicate names. */
+         if (ulIndex > 0) {
+            Node_T oNPrevChild = NULL;
+            iStatus = Node_getChild(oNNode, ulIndex - 1, &oNPrevChild);
+            assert(iStatus == SUCCESS);
+
+         if(Path_comparePath(Node_getPath(oNChild), 
+                             Node_getPath(oNPrevChild)) < 0) {
+            fprintf(stderr, 
+                       "Paths are not arranged in lexographic order\n");
+            return FALSE;
+         }
+
+         if(Path_comparePath(Node_getPath(oNChild), 
+                             Node_getPath(oNPrevChild)) == 0) {
+            fprintf(stderr, "Tree has a duplicate path\n");
+            return FALSE;
+         }
+         }
+         
          /* if recurring down one subtree results in a failed check
             farther down, passes the failure back up immediately */
-         if(!CheckerDT_treeCheck(oNChild, oDPathsSeen))
+         if(!CheckerDT_treeCheck(oNChild, ulRealCount)) {
             return FALSE;
       }
    }
-
+} 
+      fprintf(stderr, "%ld", *ulRealCount);
       return TRUE;
 }
-
 
 /* see checkerDT.h for specification */
 boolean CheckerDT_isValid(boolean bIsInitialized, Node_T oNRoot,
                           size_t ulCount) {
-   DynArray_T oDPathsSeen;
+   size_t ulRealCount;
+   int iStatus;
 
    /* Sample check on a top-level data structure invariant:
       if the DT is not initialized, its count should be 0. */
@@ -138,8 +146,13 @@ boolean CheckerDT_isValid(boolean bIsInitialized, Node_T oNRoot,
       }
    }
 
-   oDPathsSeen = DynArray_new(ulCount);
+   ulRealCount = 0;
 
-   /* Now checks invariants recursively at each node from the root. */
-   return CheckerDT_treeCheck(oNRoot, oDPathsSeen);
+   /* Perform the tree check */
+   iStatus = (CheckerDT_treeCheck(oNRoot, &ulRealCount));
+   if (ulCount != ulRealCount) {
+      fprintf(stderr, "Tree has wrong number of nodes than count\n");
+      return FALSE;
+   }
+   return iStatus;
 }
