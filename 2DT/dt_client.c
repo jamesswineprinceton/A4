@@ -85,7 +85,6 @@ int main(void) {
   /* Children of any path must be unique, but individual directories
      in different paths needn't be
   */
- fprintf(stderr, "AA");
   assert(DT_insert("1root/2child/3grandchild") == ALREADY_IN_TREE);
   assert(DT_contains("1root/2second/3grandchild") == FALSE);
   assert(DT_insert("1root/2second/3grandchild") == SUCCESS);
@@ -97,30 +96,22 @@ int main(void) {
   assert((temp = DT_toString()) != NULL);
   fprintf(stderr, "Checkpoint 2:\n%s\n", temp);
   free(temp);
-  fprintf(stderr, "AA");
 
   /* calling rm on a path that doesn't exist should return
      NO_SUCH_PATH, but on a path that does exist should return
      SUCCESS and remove entire subtree rooted at that path
   */
   assert(DT_contains("1root/2second/3grandchild/1root") == TRUE);
-
   assert(DT_contains("1root/2second/3second") == FALSE);
-
   assert(DT_rm("1root/2second/3second") == NO_SUCH_PATH);
-
   assert(DT_contains("1root/2second/3second") == FALSE);
   assert(DT_rm("1root/2second") == SUCCESS);
   assert(DT_contains("1root") == TRUE);
-
   assert(DT_contains("1root/2child") == TRUE);
   assert(DT_contains("1root/2second") == FALSE);
-
   assert(DT_contains("1root/2second/3grandchild") == FALSE);
   assert(DT_contains("1root/2second/3grandchild/1root") == FALSE);
-  fprintf(stderr, "CC");
   assert((temp = DT_toString()) != NULL);
-  fprintf(stderr, "CC");
   fprintf(stderr, "Checkpoint 3:\n%s\n", temp);
   free(temp);
 
@@ -145,19 +136,14 @@ int main(void) {
   assert(DT_insert("a/y") == SUCCESS);
   assert((temp = DT_toString()) != NULL);
   assert(!strcmp(temp,"a\na/y\n"));
-  fprintf(stderr, "%s", temp);
   free(temp);
-  fprintf(stderr, "%s", temp);
   assert(DT_insert("a/x") == SUCCESS);
   assert((temp = DT_toString()) != NULL);
   assert(!strcmp(temp,"a\na/x\na/y\n"));
-  fprintf(stderr, "%s", temp);
   free(temp);
   assert(DT_rm("a/y") == SUCCESS);
-  fprintf(stderr, "%s", temp);
   assert((temp = DT_toString()) != NULL);
   assert(!strcmp(temp,"a\na/x\n"));
-  fprintf(stderr, "%s", temp);
   free(temp);
   assert(DT_insert("a/y2") == SUCCESS);
   assert((temp = DT_toString()) != NULL);
