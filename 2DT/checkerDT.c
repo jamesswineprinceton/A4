@@ -124,6 +124,7 @@ static size_t CheckerDT_countCheck(Node_T oNNode) {
             return 0;
            }
 
+           /* Sum all children found from recurring */
            ulRealCount += CheckerDT_countCheck(oNChild);
        }
    }
