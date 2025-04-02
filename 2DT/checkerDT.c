@@ -103,7 +103,7 @@ static boolean CheckerDT_treeCheck(Node_T oNNode) {
 
 /* Performs a pre-order traversal of the tree rooted at oNNode. Counts
    each node within DT to ensure it can be matched with the DT's count
-   later. */
+   later. Returns the number of nodes within DT */
 static size_t CheckerDT_countCheck(Node_T oNNode) {
    size_t ulRealCount = 0;
    size_t ulIndex;
@@ -155,7 +155,7 @@ boolean CheckerDT_isValid(boolean bIsInitialized, Node_T oNRoot,
 
    /* Check: if the DT's count is 0, its root should be NULL. */
    if(ulCount == 0) {
-      if(oNRoot != 0) {
+      if(oNRoot != NULL) {
          fprintf(stderr, "Count is 0, but root is not NULL\n");
          return FALSE;
       }
@@ -173,7 +173,7 @@ boolean CheckerDT_isValid(boolean bIsInitialized, Node_T oNRoot,
    ulRealCount = CheckerDT_countCheck(oNRoot);
    if (ulRealCount != ulCount) {
       fprintf(stderr, 
-         "DT count is %ld, but number of nodes in DT is %ld\n",
+         "DT count is %lu, but number of nodes in DT is %lu\n",
       ulCount, ulRealCount);
       return FALSE;
    }
