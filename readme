@@ -165,6 +165,38 @@ the error manifests itself or is "noticed" by the client.
 What are your critiques of the given DT implementations, as
 specified in Step 2.5?
 
+NodeDtGood.c
+- Node_new module bloat
+      - Has way too many invariants called.
+      - it should have a static function that calls invariants. 
+Path, Dynarray
+- Funtion names + Static function length 
+      Path
+      - The names are unclear about what they do. And helper 
+      functions should have names that make them clear they are
+      helper functions. For example Path_split does not clearly
+      say what exactly it is splitting, or into what.
+      - Some functions are too long and need more static helpers.
+      Such as Path_split aswell. Especially as a helper function this
+      code should not be taking up this much space with 
+      invariants.
+The same themese occur in DynArray
+      - **DynArray_bsearchHelp does not say what it actually does
+            however it does clarify that it is a helper function which 
+            is good. However it's only difference from another function
+            within DynArray's API is that it says "help"
+       - Dynarray.c actually has pretty good modularity, and
+            is not too bloated.
+
+
+Parameter Ordering
+      int Path_dup(Path_T oPPath, Path_T *poPResult);
+      - This should maybe use the system that is generally used such 
+as in strcpy where the dst memory is first, and the memory copying
+is second. This is a theme with other functions such as Path_New.
+
+
+
 
 
 ------------------------------------------------------------------------
