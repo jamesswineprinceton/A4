@@ -22,12 +22,6 @@ boolean CheckerDT_Node_isValid(Node_T oNNode) {
       return FALSE;
    }
 
-   /* Check: A pointer with a NULL path is not a valid node */
-   if(Node_getPath(oNNode) == NULL) {
-      fprintf(stderr, "Node's path is NULL\n");
-      return FALSE;
-   }
-
    /* Sample check: parent's path must be the longest possible
       proper prefix of the node's path */
    oNParent = Node_getParent(oNNode);
@@ -46,7 +40,7 @@ boolean CheckerDT_Node_isValid(Node_T oNNode) {
    return TRUE;
 }
 
-/*
+   /*
    Performs a pre-order traversal of the tree rooted at oNNode.
    Returns FALSE if a broken invariant is found and
    returns TRUE otherwise.

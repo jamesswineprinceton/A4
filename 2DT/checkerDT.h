@@ -16,7 +16,7 @@
 */
 boolean CheckerDT_Node_isValid(Node_T oNNode);
 
-/*
+   /*
    Returns TRUE if the hierarchy is in a valid state or FALSE
    otherwise.  Prints explanation to stderr in the latter case.
    The data structure's validity is based on a boolean
