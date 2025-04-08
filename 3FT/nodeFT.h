@@ -11,12 +11,8 @@
 #include "path.h"
 
 
-/* A Node_Tfile is a file node in a Directory Tree */
-typedef struct node *Node_Tfile;
-
-/* A Node_Tdir is a directory node in a Directory Tree */
-typedef struct node *Node_Tdir;
-
+/* A Node_T is a node in a Directory Tree */
+typedef struct node *Node_T;
 
 /*
   Creates a new node in the Directory Tree, with path oPPath and

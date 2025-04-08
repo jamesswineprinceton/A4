@@ -12,6 +12,8 @@
 
 /* A node in a DT */
 struct node {
+   /* the type of node (file or directory )*/
+   bool isDirectory;
    /* the object corresponding to the node's absolute path */
    Path_T oPPath;
    /* this node's parent */
@@ -19,7 +21,6 @@ struct node {
    /* the object containing links to this node's children */
    DynArray_T oDChildren;
 };
-
 
 /*
   Links new child oNChild into oNParent's children array at index
