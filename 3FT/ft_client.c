@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "ft.h"
+#include "a4def.h"
 
 /* Tests the FT implementation with an assortment of checks.
    Prints the status of the data structure along the way to stderr.
@@ -133,7 +134,6 @@ int main(void) {
          NOT_A_DIRECTORY);
   assert(FT_containsFile("1root/2third/3nopeF") == FALSE);
 
-
   /* calling rm* on a path that doesn't exist should return
      NO_SUCH_PATH, but on a path that does exist with the right
      flavor should return SUCCESS and remove entire subtree rooted at
@@ -171,7 +171,7 @@ int main(void) {
   /* checking that file contents work as expected */
   assert(FT_insertDir("1root") == SUCCESS);
   assert(FT_insertFile("1root/H", "hello, world!",
-                       strlen("hello, world!")+1) == SUCCESS);
+                       strlen("hello, world!")+1) == SUCCESS); 
   assert(!strcmp(FT_getFileContents("1root/H"), "hello, world!"));
   bIsFile = FALSE;
   l = -1;

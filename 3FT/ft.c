@@ -14,7 +14,7 @@
 #include "nodeFT.h"
 #include "checkerFT.h"
 #include "ft.h"
-
+#include "a4def.h"
 
 /*
   A File Tree is a representation of a hierarchy of directories,
@@ -178,9 +178,11 @@ int FT_insertDir(const char *pcPath) {
    Node_T oNCurr = NULL;
    size_t ulDepth, ulIndex;
    size_t ulNewNodes = 0;
+   boolean bisDirectory = TRUE;
    void *pVContents = NULL;
    size_t ulLength = 0;
-   boolean isDirectory = TRUE;
+   Path_T oPPrefix = NULL;
+   Node_T oNNewNode;
 
    assert(pcPath != NULL);
    assert(CheckerFT_isValid(bIsInitialized, oNRoot, ulCount));
@@ -224,8 +226,8 @@ int FT_insertDir(const char *pcPath) {
 
    /* starting at oNCurr, build rest of the path one level at a time */
    while(ulIndex <= ulDepth) {
-      Path_T oPPrefix = NULL;
-      Node_T oNNewNode = NULL;
+      oPPrefix = NULL;
+      oNNewNode = NULL;
 
       /* generate a Path_T for this level */
       iStatus = Path_prefix(oPPath, ulIndex, &oPPrefix);
@@ -238,9 +240,8 @@ int FT_insertDir(const char *pcPath) {
       }
 
       /* insert the new node for this level */
-      iStatus = Node_new(isDirectory, oPPrefix, oNCurr, &oNNewNode,
+      iStatus = Node_new(bisDirectory, oPPrefix, oNCurr, &oNNewNode,
                          pVContents, ulLength);
-
       if(iStatus != SUCCESS) {
          Path_free(oPPath);
          Path_free(oPPrefix);
@@ -306,7 +307,6 @@ int FT_rmDir(const char *pcPath) {
 int FT_insertFile(const char *pcPath, void *pvContents, 
                   size_t ulLength) {
    int iStatus;
-   boolean isDirectory = FALSE;
    Path_T oPPath = NULL;
    Node_T oNFirstNew = NULL;
    Node_T oNCurr = NULL;
@@ -314,6 +314,7 @@ int FT_insertFile(const char *pcPath, void *pvContents,
    size_t ulNewNodes = 0;
    Path_T oPPrefix;
    Node_T oNNewNode;
+   boolean bisDirectory;
    void * pvDirectoryContents = NULL;
    size_t ulDirectoryLength = 0;
 
@@ -344,6 +345,13 @@ int FT_insertFile(const char *pcPath, void *pvContents,
    }
 
    ulDepth = Path_getDepth(oPPath);
+
+   /* putting a file at the root is illegal*/
+   if(ulDepth == 1) {
+      Path_free(oPPath);
+      return CONFLICTING_PATH;
+   }
+
    if(oNCurr == NULL) /* new root! */
       ulIndex = 1;
    else {
@@ -358,8 +366,7 @@ int FT_insertFile(const char *pcPath, void *pvContents,
    }
 
    /* While we rebuild the paths, we will be using directories */
-   isDirectory = TRUE;
-   pvContents = NULL;
+   bisDirectory = TRUE;
    
    /* Starting at oNCurr, build the rest of the path one level at a time 
    using directories up to the depth where the file should be placed */
@@ -378,7 +385,7 @@ int FT_insertFile(const char *pcPath, void *pvContents,
       }
 
       /* insert the new node for this level */
-      iStatus = Node_new(isDirectory, oPPrefix, oNCurr, &oNNewNode,
+      iStatus = Node_new(bisDirectory, oPPrefix, oNCurr, &oNNewNode,
                          pvDirectoryContents, ulDirectoryLength);
       if(iStatus != SUCCESS) {
          Path_free(oPPath);
@@ -400,7 +407,7 @@ int FT_insertFile(const char *pcPath, void *pvContents,
 
    
 /* Insert the file after rebuilding all directories up to its depth */
-   isDirectory = FALSE;
+   bisDirectory = FALSE;
    oPPrefix = NULL;
    oNNewNode = NULL;
 
@@ -414,8 +421,8 @@ int FT_insertFile(const char *pcPath, void *pvContents,
       return iStatus;
    }
 
-   /* insert the new node for this level */
-   iStatus = Node_new(isDirectory, oPPrefix, oNCurr, &oNNewNode,
+   /* insert the new file node for this level */
+   iStatus = Node_new(bisDirectory, oPPrefix, oNCurr, &oNNewNode,
                       pvContents, ulLength);
    if(iStatus != SUCCESS) {
       Path_free(oPPath);
@@ -427,12 +434,14 @@ int FT_insertFile(const char *pcPath, void *pvContents,
    }
    ulNewNodes++;
 
+   Path_free(oPPrefix);
    Path_free(oPPath);
+
    /* update FT state variables to reflect insertion */
-   if(oNRoot == NULL)
+   if(oNRoot == NULL) 
       oNRoot = oNFirstNew;
    ulCount += ulNewNodes;
-
+   
    assert(CheckerFT_isValid(bIsInitialized, oNRoot, ulCount));
    return SUCCESS;
 }
@@ -486,6 +495,7 @@ void *FT_getFileContents(const char *pcPath) {
       if(Node_isDirectory(oNFound) == TRUE) return NULL;
       return Node_getContents(oNFound);
    }
+
    return NULL;
 }
 
@@ -586,13 +596,23 @@ static size_t FT_preOrderTraversal(Node_T n, DynArray_T d, size_t i) {
    if(n != NULL) {
       (void) DynArray_set(d, i, n);
       i++;
+      /* two seperate for loops, fills in files in lexographic order 
+      first and directories in lexographic orders second */
       for(c = 0; c < Node_getNumChildren(n); c++) {
          int iStatus;
          Node_T oNChild = NULL;
          iStatus = Node_getChild(n,c, &oNChild);
          assert(iStatus == SUCCESS);
-         i = FT_preOrderTraversal(oNChild, d, i);
-      
+         if(Node_isDirectory(oNChild) == FALSE)
+            i = FT_preOrderTraversal(oNChild, d, i);
+      }
+      for(c = 0; c < Node_getNumChildren(n); c++) {
+         int iStatus;
+         Node_T oNChild = NULL;
+         iStatus = Node_getChild(n,c, &oNChild);
+         assert(iStatus == SUCCESS);
+         if(Node_isDirectory(oNChild) == TRUE)
+            i = FT_preOrderTraversal(oNChild, d, i);
       }
    }
 return i;

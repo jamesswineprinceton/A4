@@ -17,7 +17,14 @@ information given in the "Policies" web page (also available on armlab
 in the file ~cos217/AuthorizedSourcesList ) to this section of the
 readme file, and edit it as appropriate.
 
-Isaac, Edin, Keith
+The course's lectures.
+The course's precepts.
+The course's website.
+Documents that are referenced directly by the course's website. 
+Such documents include the course's lecture slides and precept handouts.
+The course's current staff members outside of class time through Ed.
+Current Intro Lab TAs through visits to the Intro COS Lab:
+Isaac, Edin, Keith Sammy, Michael
 
 ------------------------------------------------------------------------
 Student 2: What authorized sources of information did you use to
@@ -26,7 +33,14 @@ information given in the "Policies" web page (also available on armlab
 in the file ~cos217/AuthorizedSourcesList ) to this section of the
 readme file, and edit it as appropriate.
 
-
+The course's lectures.
+The course's precepts.
+The course's website.
+Documents that are referenced directly by the course's website. 
+Such documents include the course's lecture slides and precept handouts.
+The course's current staff members outside of class time through Ed.
+Current Intro Lab TAs through visits to the Intro COS Lab:
+Isaac, Edin, Keith Sammy, Michael
 
 ------------------------------------------------------------------------
 Student 1: What unauthorized sources of information did you use to
@@ -86,7 +100,12 @@ No and no.
 Student 2: What is your assessment of the assignment? Was it helpful?
 Was it fun?
 
+I mean I get why you want to make an assignment like this. It's
+important to be able to read and understand and edit code that 
+wasn't written by you. It's more applicable to coding in the real world
+its just that...
 
+its really not fun to do.
 
 ------------------------------------------------------------------------
 (optional) What information can you provide about your submission that
@@ -129,7 +148,11 @@ your disagreements with them? Copy the splint warnings here, and
 express your disagreement after each warning. If there are no
 warnings, then write "None."
 
-      
+ft.c:94:42: Variable ulChildID used before definition
+An rvalue is used that may not be initialized to a value on some 
+execution path. (Use -usedef to inhibit warning)
+ulChildID is only used if Node_hasChild works, so it will never be used
+without being initialized
 
 ------------------------------------------------------------------------
 What warnings does critTer generate on your Part 3 code, and what are
@@ -137,7 +160,23 @@ your disagreements with them? Copy the critTer warnings here, and
 express your disagreement after each warning. If there are no
 warnings, then write "None."
 
+ft.c: line 674: low priority: 
+A file should contain no more than 15 functions;
+this file contains 17 functions
+ft.c uses the same amount of functions that were required in ft.h
 
+ft.c: line 309: medium priority:
+Do you want to validate 'pvContents' through an assert?
+No, pvContents can be NULL.
+
+ft.c: line 504: medium priority:
+Do you want to validate 'pvNewContents' through an assert?
+No, pvContents can be NULL.
+
+ft.c: line 673: low priority: 
+A source code file should contain fewer than 500 lines;
+this file contains 674 lines
+Sorry, this was a long assignment! Thus, there is a lot of code.
 
 ------------------------------------------------------------------------
 For each of the five faulty BDT implementations required by Step
@@ -164,6 +203,7 @@ the error manifests itself or is "noticed" by the client.
 ------------------------------------------------------------------------
 What are your critiques of the given DT implementations, as
 specified in Step 2.5?
+
 
 NodeDtGood.c
 - Node_new module bloat
@@ -197,6 +237,45 @@ is second. This is a theme with other functions such as Path_New.
 
 
 
+dt.h
+	•	Some files don’t have the best names, such as Dt_destroy. 
+      It is not exactly clear whether this function uninitializes the 
+            tree or not. 
+dtGood.c
+	•	There are a lot of auxiliary functions just for toString. 
+      Ideally, the to-string format would be more easily sorted. For 
+      example, three functions traverse the path of the tree: findNode, 
+      preOrderTraversal, and TraversePath. Ideally, you would not have 
+      to have three different functions that perform mostly similar 
+      things.
+	•	Parameter Ordering. Generally, the destination parameter 
+      should be first as it is in the String module (strcpy, strcat). 
+      However, this is not true for many functions in dtGood.c. For 
+      example, in DT_traversePath, poNFurthest is given the value, and 
+      it is the last parameter, same with DT_findNode, 
+      DT_strlenAccumulate, and DT_strcatAccumulate
+	•	Module bloat. There should be static functions written for 
+      invariants. It would make the code significantly more readable in 
+      functions like :DT_insert.
+nodeDT.h
+	•	Parameter ordering. Similar to above, the dst parameter is 
+      not first in functions like Node_new, Node_hasChild, and 
+      Node_getChild
+nodeDTGood.c
+	•	This is not necessarily fixable, but I think it should maybe 
+      be clearer for readability and future programmers' sake that the 
+      “add_Child” function is the place where the node is put into the 
+            Dynarry. Coming from us, after we finished part 3, that one 
+            was more difficult to trace back to.
+	•	Module bloat. There should be static functions written for 
+      invariants. It would make the code significantly more readable in 
+      functions like Node_new.
+A4def.h
+	•	
+
+Dynarry, Path
+	•	Mostly just naming issues. Names like Path_split, 
+      path_prefix could be clearer. That's being finicky though. 
 
 
 ------------------------------------------------------------------------

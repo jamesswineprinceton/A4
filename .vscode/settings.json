@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "checkerft.h": "c"
+        "checkerft.h": "c",
+        "stddef.h": "c",
+        "string.h": "c"
     }
 }

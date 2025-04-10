@@ -1,14 +1,16 @@
 /*--------------------------------------------------------------------*/
 /* nodeFT.c                                                           */
-/* Author: Christopher Moretti                                        */
+/* Author: Christopher Moretti, James Swinehart, and Benny Wertheimer */
 /*--------------------------------------------------------------------*/
 
 #include <stdlib.h>
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 #include "dynarray.h"
 #include "nodeFT.h"
 #include "checkerFT.h"
+#include "a4def.h"
 
 /* A node in a DT */
 struct node {
@@ -34,7 +36,7 @@ struct node {
 static int Node_addChild(Node_T oNParent, Node_T oNChild,
                          size_t ulIndex) {
    assert(oNParent != NULL);
-   assert(oNParent->bIsDirectory != FALSE);
+   assert(oNParent->bIsDirectory);
    assert(oNChild != NULL);
    
    if(DynArray_addAt(oNParent->oDChildren, ulIndex, oNChild))
@@ -69,9 +71,10 @@ static int Node_compareString(const Node_T oNFirst,
                  or oNParent's path is not oPPath's direct parent
                  or oNParent is NULL but oPPath is not of depth 1
   * ALREADY_IN_TREE if oNParent already has a child with this path
+  * NOT_A_DIRECTORY if oNParent is a file node
 */
-int Node_new(boolean directoryStatus, Path_T oPPath, Node_T oNParent, 
-             Node_T *poNResult, void *pVContents, size_t ulLength) {
+int Node_new(boolean bIsDirectory, Path_T oPPath, Node_T oNParent, 
+             Node_T *poNResult, void *pvContents, size_t ulLength) {
    struct node *psNew;
    Path_T oPParentPath = NULL;
    Path_T oPNewPath = NULL;
@@ -79,9 +82,13 @@ int Node_new(boolean directoryStatus, Path_T oPPath, Node_T oNParent,
    size_t ulIndex;
    int iStatus;
 
-   assert(directoryStatus == TRUE || directoryStatus == FALSE);
+   assert(bIsDirectory == TRUE || bIsDirectory == FALSE);
    assert(oPPath != NULL);
    assert(oNParent == NULL || CheckerFT_Node_isValid(oNParent));
+
+   if(oNParent != NULL && !Node_isDirectory(oNParent)) {
+      return NOT_A_DIRECTORY;
+   }
 
    /* allocate space for a new node */
    psNew = malloc(sizeof(struct node));
@@ -91,7 +98,7 @@ int Node_new(boolean directoryStatus, Path_T oPPath, Node_T oNParent,
    }
 
    /* set the new node's type */
-   psNew->bIsDirectory = directoryStatus;
+   psNew->bIsDirectory = bIsDirectory;
 
    /* set the new node's path */
    iStatus = Path_dup(oPPath, &oPNewPath);
@@ -147,16 +154,15 @@ int Node_new(boolean directoryStatus, Path_T oPPath, Node_T oNParent,
    psNew->oNParent = oNParent;
 
    /* set the node's contents, if necessary */
-   if(directoryStatus == FALSE) {
-      psNew->pvContents = pVContents;
+   if(bIsDirectory == FALSE) {
+      psNew->pvContents = pvContents;
    }
    else {
       psNew->pvContents = NULL;
    }
 
    /* set the node's content length, if necessary */
-   if(directoryStatus == FALSE) psNew->ulContentsLength = 0;
-   else psNew->ulContentsLength = ulLength;
+   psNew->ulContentsLength = ulLength;
 
    /* initialize the new node */
    psNew->oDChildren = DynArray_new(0);
@@ -290,8 +296,8 @@ boolean Node_isDirectory(Node_T oNNode) {
 
 void *Node_getContents(Node_T oNNode) {
    assert(oNNode != NULL);
-   assert(oNNode->bIsDirectory == FALSE);
-
+   assert(!oNNode->bIsDirectory);
+   
    return oNNode->pvContents;
 }
 
